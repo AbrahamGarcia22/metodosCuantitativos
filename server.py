@@ -1,23 +1,28 @@
 import math
 import pickle
+import random
 import socket
 
+import matplotlib.pyplot as plt
+
 # Create a TCP/IP socket
-hw = 80
-lw = 13
+hw = 2000
+lw = 60
 r = 0.1
 cwnd_initial = 16
-
+PROBS = [0, 0, 0, 0, 1, 0, 0, 0, 1]
+# TIMES = list(range(0, 50))  # Used to determine is there was a timeout
 # This is for TCP
 def increase_cwnd(cwnd):
-    result = cwnd + (1 / cwnd)
-    return result
+    # This part was modified from original method to produce significant change
+    cwnd += cwnd * 0.2
+    return cwnd
 
 
 def decrease_cwnd(cwnd):
     cwnd = cwnd / 2
     sst = cwnd
-    return (cwnd, sst)
+    return (max(cwnd, 1), sst)
 
 
 def timeout(cwnd):
@@ -29,8 +34,9 @@ def timeout(cwnd):
 # This is for HSTCP
 def increase_cwnd_hs(cwnd):
     g_beta = decrease_cwnd_hs(cwnd)
-    numerator = pow(cwnd, 2) * (0.078 / 1.2) * 2 * (g_beta / (2 - g_beta)) + 0.5
-    return numerator
+    f_alpha = pow(cwnd, 2) * (0.078 / 1.2) * 2 * (g_beta / (2 - g_beta)) + 0.5
+    cwnd += f_alpha / cwnd
+    return cwnd
 
 
 def decrease_cwnd_hs(cwnd):
@@ -43,6 +49,7 @@ def decrease_cwnd_hs(cwnd):
 def loss_hs(cwnd):
     cwnd = (1 - decrease_cwnd_hs(cwnd)) * cwnd
     sst = cwnd
+    cwnd = max(cwnd, cwnd_initial)
     return (cwnd, sst)
 
 
@@ -51,6 +58,43 @@ def timeout_hs(cwnd):
     sst = max(cwnd, cwnd_initial)
     cwnd = cwnd_initial
     return (cwnd, sst)
+
+
+def plot_cwnd(results: list):
+    fig, ax = plt.subplots(figsize=(50, 10))
+    ax.plot(results)
+    plt.title("HSTCP Behavior")
+    plt.ylabel("Congestion Window")
+    plt.xlabel("Packets received")
+    # Guardar el gráfico en formato png
+    plt.savefig("graphic_result.png")
+    plt.cla()
+    plt.clf()
+
+
+def get_new_cwnd(cwnd, sst):
+    loss = random.choice(PROBS)
+    time = random.choice(PROBS)
+    if cwnd < lw:
+        if time:
+            cwnd, sst = timeout(cwnd)
+            print("Timeout")
+        elif loss:
+            print("Packet Loss")
+            cwnd, sst = decrease_cwnd(cwnd)
+        else:
+            cwnd = increase_cwnd(cwnd)
+    else:
+        if time:
+            print("Timeout")
+            cwnd, sst = timeout_hs(cwnd)
+        elif loss:
+            print("Packet Loss")
+            cwnd, sst = loss_hs(cwnd)
+        else:
+            cwnd = increase_cwnd_hs(cwnd)
+    print(f"New cwnd:{cwnd}, New sst:{sst}")
+    return cwnd, sst
 
 
 def main():
@@ -64,6 +108,8 @@ def main():
     # Listen for incoming connections
     sock.listen(1)
     amount_rec = 0
+    cwnds = [0, cwnd_initial]
+    sst = cwnd_initial
     while True:
         # Wait for a connection
         print("waiting for a connection")
@@ -72,21 +118,24 @@ def main():
             print("connection from", client_address)
             # Receive the data in small chunks and retransmit it
             cwnd = cwnd_initial
+            print(cwnd)
             while True:
-                data = connection.recv(cwnd)
+                data = connection.recv(int(cwnd))
+                cwnd, sst = get_new_cwnd(cwnd, sst)
+                cwnds.append(cwnd)
                 # print(len(data))
                 # print("received {!r}".format(pickle.dumps(data)))
                 if data:
                     amount_rec += len(data)
                     # print("received {}".format(pickle.dumps(data)))
-                    print(len(data))
-                    print("sending data back to the client")
+                    # print("sending data back to the client")
                     connection.sendall(pickle.dumps(data))
                 else:
                     print("no data from", client_address)
                     break
         finally:
             # Clean up the connection
+            plot_cwnd(cwnds)
             print(f"final: {amount_rec}")
             connection.close()
 
