@@ -133,6 +133,8 @@ def main():
                 else:
                     print("no data from", client_address)
                     break
+        except socket.error:
+            print("Connection closed by client")
         finally:
             # Clean up the connection
             plot_cwnd(cwnds)
