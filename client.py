@@ -8,16 +8,13 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = ("localhost", 10000)
 print("connecting to {} port {}".format(*server_address))
 sock.connect(server_address)
-l = list(range(20000))
+l_data = list(range(30000))
 # print(len(pickle.dumps(l)))
 try:
 
     # Send data
-    # message = b"This is the message.  It will be repeated."
-    message = pickle.dumps(l)
+    message = pickle.dumps(l_data)
     print(len(message))
-    # print("sending {!r}".format(message))
-    # print(f"sending {pickle.dumps(l)}")
     sock.sendall(message)
 
     # Look for the response

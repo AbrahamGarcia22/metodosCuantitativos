@@ -11,7 +11,7 @@ lw = 60
 r = 0.1
 cwnd_initial = 16
 PROBS = [0, 0, 0, 0, 1, 0, 0, 0, 1]
-# TIMES = list(range(0, 50))  # Used to determine is there was a timeout
+
 # This is for TCP
 def increase_cwnd(cwnd):
     # This part was modified from original method to produce significant change
@@ -66,7 +66,6 @@ def plot_cwnd(results: list):
     plt.title("HSTCP Behavior")
     plt.ylabel("Congestion Window")
     plt.xlabel("Packets received")
-    # Guardar el gráfico en formato png
     plt.savefig("graphic_result.png")
     plt.cla()
     plt.clf()
@@ -123,12 +122,8 @@ def main():
                 data = connection.recv(int(cwnd))
                 cwnd, sst = get_new_cwnd(cwnd, sst)
                 cwnds.append(cwnd)
-                # print(len(data))
-                # print("received {!r}".format(pickle.dumps(data)))
                 if data:
                     amount_rec += len(data)
-                    # print("received {}".format(pickle.dumps(data)))
-                    # print("sending data back to the client")
                     connection.sendall(pickle.dumps(data))
                 else:
                     print("no data from", client_address)
@@ -140,6 +135,7 @@ def main():
             plot_cwnd(cwnds)
             print(f"final: {amount_rec}")
             connection.close()
+            amount_rec = 0
 
 
 if __name__ == "__main__":
